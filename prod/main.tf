@@ -20,15 +20,11 @@ module "dynamodb" {
 }
 
 module "lambda" {
-  source              = "../../modules/lambda"
+  source              = "../../modules/lambda"  # Note: lamda instead of lambda
   environment         = "prod"
   ec2_instance_id     = module.ec2.instance_id
   s3_bucket_name      = module.s3.bucket_name
   dynamodb_table_name = module.dynamodb.table_name
   lambda_timeout      = var.lambda_timeout
   lambda_memory_size  = var.lambda_memory_size
-}
-
-variable "aws_region" {
-  default = "us-east-1"
 }
