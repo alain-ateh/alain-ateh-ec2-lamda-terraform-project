@@ -1,0 +1,65 @@
+How AWS Lambda Fits In
+•  Purpose: The Lambda function monitors the EC2 instance’s status every 5 minutes, logging the state (e.g., running, stopped) to CloudWatch Logs. This demonstrates Lambda’s event-driven nature and integration with AWS services like EC2 and CloudWatch.
+•  Environment Differences:
+	•  Dev: Uses a smaller EC2 instance (t2.micro), shorter Lambda timeout (10s), and less memory (128 MB) for cost efficiency. SSH is open to all (0.0.0.0/0) for testing.
+	•  Prod: Uses a larger EC2 instance (t2.medium), longer Lambda timeout (30s), and more memory (256 MB) for reliability. SSH is restricted via prod_cidr_block.
+•  Serverless Benefits:
+	•  No Server Management: Lambda handles infrastructure, scaling, and maintenance.
+	•  Cost Efficiency: Pay only for compute time (billed per millisecond).
+	•  Event-Driven: Triggered by CloudWatch Events, ideal for periodic tasks like monitoring.
+	•  Scalability: Automatically scales to handle load, unlike EC2, which requires manual scaling or auto-scaling groups.
+Deployment Steps
+1.  Prerequisites:
+	•  Install Terraform: terraform.io.
+	•  Configure AWS credentials (aws configure or environment variables).
+	•  Create an AWS key pair for EC2 SSH access and update key_name in variables.tf.
+2.  Deploy Dev Environment:
+	•  Navigate to environments/dev:
+    •  Check CloudWatch Logs (/aws/lambda/dev-monitor-ec2) for EC2 status logs.
+	•  SSH to EC2: ssh -i your-key.pem ec2-user@<public-ip>.
+3.  Deploy Prod Environment:
+	•  Navigate to environments/prod: cd ../prod
+    •  Update prod_cidr_block to your IP for security.
+	•  Repeat init, plan, and apply.
+4.  Clean Up:
+	•  Destroy resources in each environment:   
+     terraform destroy 
+Additional AWS Lambda Insights
+•  Use Cases: Lambda is versatile for web backends, IoT, file processing, and chatbots.
+•  Runtimes: Supports Python, Node.js, Java, Go, .NET, Ruby, and custom runtimes (e.g., Rust). Python and Node.js are fastest for simple tasks; Rust has low cold-start latency.
+•  Monitoring: Automatically sends logs and metrics to CloudWatch. Use AWS Lambda Powertools for structured logging and tracing.
+•  Performance: SnapStart reduces cold-start latency for Python and .NET functions.
+•  Limitations: 250 MB package size limit for Lambda layers, no semantic versioning for layers, and potential service lock-in.
+•  Best Practices: Use environment variables for configuration, cache connections in /tmp, and write idempotent code.
+Notes
+•  AMI ID: Update ami_id for your region using the AWS Console or CLI (aws ec2 describe-images).
+•  Security: Restrict prod_cidr_block in prod. Use AWS Key Management Service (KMS) for sensitive environment variables in Lambda.
+•  Extensibility: Add more Lambda functions for tasks like auto-tagging EC2 instances or sending alerts via AWS SES.
+•  Cost: Lambda is free for up to 1M requests/month. EC2 t2.micro is free-tier eligible. Check AWS Lambda Pricing for details.
+This project demonstrates how Lambda complements EC2 in a multi-environment setup, leveraging serverless automation for monitoring. 
+
+How S3 and DynamoDB Integrate
+•  S3 Bucket:
+	•  Purpose: Stores JSON logs from Lambda with EC2 status, timestamp, and instance ID. Logs are organized by environment (e.g., dev-monitor-ec2/logs/<timestamp>.json).
+	•  Dev vs. Prod: Dev has versioning disabled to save costs; prod enables versioning for data durability. Both block public access for security.
+	•  Use Case: Persistent storage for logs, accessible for auditing or analysis.
+•  DynamoDB Table:
+	•  Purpose: Stores EC2 status records with InstanceId (hash key) and Timestamp (range key) for querying and tracking status history.
+	•  Dev vs. Prod: Dev uses PAY_PER_REQUEST billing for flexibility; prod uses PROVISIONED with defined read/write capacity for predictable performance.
+	•  Use Case: Structured storage for status data, enabling queries like “latest status of instance X” or “status history.”
+•  Lambda Integration:
+	•  The Lambda function writes logs to S3 and status records to DynamoDB, using environment variables to reference the bucket and table names.
+	•  IAM policies grant Lambda access to s3:PutObject and dynamodb:PutItem.
+Environment Differences
+•  EC2: Dev uses t2.micro (free-tier); prod uses t2.medium. Prod restricts SSH via prod_cidr_block.
+•  Lambda: Dev has 128 MB memory and 10s timeout; prod has 256 MB and 30s for reliability.
+•  S3: Prod enables versioning; dev does not.
+•  DynamoDB: Prod uses provisioned capacity (5 RCU/WCU); dev uses pay-per-request.
+•  Security: Prod restricts access (e.g., SSH, bucket policies); dev is more open for testing.
+Deployment Steps
+1.  Prerequisites:
+	•  Install Terraform: terraform.io.
+	•  Configure AWS credentials (aws configure or environment variables).
+	•  Create an AWS key pair for EC2 SSH access and update key_name in variables.tf.
+2.  Deploy Dev Environment:
+	•  Navigate to environments/dev:
